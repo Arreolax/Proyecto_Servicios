@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <!-- Texto obligatorio que no puede quedar vacío ni solo con espacios. -->
+    <xs:simpleType name="TextoNoVacio">
+        <xs:restriction base="xs:token">
+            <xs:minLength value="1"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Identificador compatible con un int positivo de Java. -->
+    <xs:simpleType name="IdLibro">
+        <xs:restriction base="xs:int">
+            <xs:minInclusive value="1"/>
+        </xs:restriction>
+    </xs:simpleType>
+    
+    <!-- Año de publicación entre 1450 y 2100. -->
+    <xs:simpleType name="AnioPublicacion">
+        <xs:restriction base="xs:integer">
+            <xs:minInclusive value="1450"/>
+            <xs:maxInclusive value="2100"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Estructura del mensaje de un libro. -->
+    <xs:element name="libro">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="id" type="IdLibro"/>
+                <xs:element name="titulo" type="TextoNoVacio"/>
+                <xs:element name="autor" type="TextoNoVacio"/>
+                <xs:element name="anioPublicacion" type="AnioPublicacion"/>
+                <xs:element name="disponible" type="xs:boolean"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>

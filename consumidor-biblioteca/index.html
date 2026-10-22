@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Biblioteca y préstamos</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f3f5f8;
+            color: #243247;
+        }
+
+        main {
+            max-width: 950px;
+            margin: auto;
+        }
+
+        section {
+            background: white;
+            padding: 24px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 12px #00000012;
+        }
+
+        label {
+            display: block;
+            margin-top: 14px;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #8995a5;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button {
+            margin-top: 16px;
+            padding: 11px 18px;
+            border: 0;
+            border-radius: 5px;
+            background: #174ea6;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .mensaje {
+            min-height: 24px;
+        }
+
+        .error {
+            color: #b42318;
+        }
+
+        .exito {
+            color: #176b36;
+        }
+
+        #resultadoLibro {
+            padding: 16px;
+            background: #edf3fc;
+            border-left: 4px solid #174ea6;
+        }
+
+        .contenedor-tabla {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #d9dfe7;
+        }
+
+        th {
+            background: #edf3fc;
+        }
+    </style>
+
+    <script src="app.js" defer></script>
+</head>
+
+<body>
+    <main>
+        <h1>Biblioteca y préstamos</h1>
+        <p>Consulta libros y registra solicitudes de préstamo.</p>
+
+        <section aria-labelledby="tituloConsulta">
+            <h2 id="tituloConsulta">1. Consultar un libro</h2>
+
+            <form id="formConsulta">
+                <label for="consultaId">Identificador del libro</label>
+                <input
+                    id="consultaId"
+                    type="number"
+                    min="1"
+                    max="2147483647"
+                    step="1"
+                    required
+                >
+
+                <button id="btnConsultar" type="submit">
+                    Consultar libro
+                </button>
+            </form>
+
+            <p id="mensajeConsulta"
+               class="mensaje"
+               role="status"
+               aria-live="polite"></p>
+
+            <div id="resultadoLibro" hidden>
+                <h3 id="tituloLibro"></h3>
+                <p><strong>ID:</strong> <span id="idLibro"></span></p>
+                <p><strong>Autor:</strong> <span id="autorLibro"></span></p>
+                <p>
+                    <strong>Disponibilidad:</strong>
+                    <span id="disponibilidadLibro"></span>
+                </p>
+            </div>
+        </section>
+
+        <section aria-labelledby="tituloSolicitud">
+            <h2 id="tituloSolicitud">2. Solicitar un préstamo</h2>
+
+            <form id="formPrestamo">
+                <label for="prestamoLibroId">Identificador del libro</label>
+                <input
+                    id="prestamoLibroId"
+                    type="number"
+                    min="1"
+                    max="2147483647"
+                    step="1"
+                    required
+                >
+
+                <label for="matricula">Matrícula del alumno</label>
+                <input
+                    id="matricula"
+                    type="text"
+                    placeholder="Ejemplo: 2026001"
+                    required
+                >
+
+                <button id="btnPrestar" type="submit">
+                    Solicitar préstamo
+                </button>
+            </form>
+
+            <p id="mensajePrestamo"
+               class="mensaje"
+               role="status"
+               aria-live="polite"></p>
+        </section>
+
+        <section aria-labelledby="tituloLista">
+            <h2 id="tituloLista">3. Préstamos registrados</h2>
+
+            <button id="btnListar" type="button">
+                Consultar préstamos
+            </button>
+
+            <p id="mensajeLista"
+               class="mensaje"
+               role="status"
+               aria-live="polite"></p>
+
+            <div class="contenedor-tabla">
+                <table id="tablaPrestamos" hidden>
+                    <thead>
+                        <tr>
+                            <th scope="col">Préstamo</th>
+                            <th scope="col">Libro</th>
+                            <th scope="col">Matrícula</th>
+                            <th scope="col">Fecha</th>
+                            <th scope="col">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoPrestamos"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

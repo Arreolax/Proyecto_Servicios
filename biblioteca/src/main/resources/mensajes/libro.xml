@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<libro>
+    <id>1</id>
+    <titulo>El principito</titulo>
+    <autor>Antoine de Saint-Exupéry</autor>
+    <anioPublicacion>1500</anioPublicacion>
+    <disponible>true</disponible>
+</libro>

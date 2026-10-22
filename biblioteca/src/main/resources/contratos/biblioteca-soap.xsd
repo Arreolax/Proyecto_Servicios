@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        xmlns:tns="http://ejemplo.com/biblioteca/soap"
+        targetNamespace="http://ejemplo.com/biblioteca/soap"
+        elementFormDefault="qualified">
+
+    <!-- Identificador compatible con un int positivo de Java. -->
+    <xs:simpleType name="IdLibro">
+        <xs:restriction base="xs:int">
+            <xs:minInclusive value="1"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Solicitud para consultar un libro. -->
+    <xs:element name="consultarLibroRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="id" type="tns:IdLibro"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- Respuesta de una consulta exitosa. -->
+    <xs:element name="consultarLibroResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="libro" type="tns:LibroSoap"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- Datos del libro que se devuelve. -->
+    <xs:complexType name="LibroSoap">
+        <xs:sequence>
+            <xs:element name="id" type="tns:IdLibro"/>
+            <xs:element name="titulo" type="xs:string"/>
+            <xs:element name="autor" type="xs:string"/>
+            <xs:element name="disponible" type="xs:boolean"/>
+        </xs:sequence>
+    </xs:complexType>
+
+</xs:schema>
