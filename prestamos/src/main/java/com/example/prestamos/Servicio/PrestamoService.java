@@ -1,37 +1,43 @@
 package com.example.prestamos.servicio;
 
 import com.example.prestamos.cliente.BibliotecaClient;
+
 import com.example.prestamos.modelo.LibroRespuesta;
 import com.example.prestamos.modelo.Prestamo;
 import com.example.prestamos.modelo.SolicitudPrestamo;
+
+import com.example.prestamos.persistencia.PrestamoEntity;
+import com.example.prestamos.persistencia.PrestamoRepository;
+
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class PrestamoService {
 
     private final BibliotecaClient bibliotecaClient;
+    private final PrestamoRepository prestamoRepository;
 
-    private final Map<Integer, Prestamo> prestamos =
-            new LinkedHashMap<>();
+    public PrestamoService(
+            BibliotecaClient bibliotecaClient,
+            PrestamoRepository prestamoRepository) {
 
-    private int siguienteId = 1;
-
-    public PrestamoService(BibliotecaClient bibliotecaClient) {
         this.bibliotecaClient = bibliotecaClient;
+        this.prestamoRepository = prestamoRepository;
     }
 
-    public synchronized Prestamo registrar(
-            SolicitudPrestamo solicitud) {
+    @Transactional
+    public Prestamo registrar(SolicitudPrestamo solicitud) {
 
-        // 1. Validar los datos recibidos.
-        if (solicitud.libroId() == null
+        // 1. Validar la solicitud antes de reservar.
+        if (solicitud == null
+                || solicitud.libroId() == null
                 || solicitud.libroId() <= 0) {
 
             throw new ResponseStatusException(
@@ -49,11 +55,19 @@ public class PrestamoService {
             );
         }
 
-        // 2. Consultar al proveedor por HTTP.
+        String matricula = solicitud.matricula().trim();
+
+        if (matricula.length() > 50) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La matrícula no debe superar 50 caracteres"
+            );
+        }
+
+        // 2. Consultar el libro mediante la API de biblioteca.
         LibroRespuesta libro =
                 bibliotecaClient.consultar(solicitud.libroId());
 
-        // 3. Revisar la disponibilidad consultada.
         if (!libro.disponible()) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
@@ -61,40 +75,65 @@ public class PrestamoService {
             );
         }
 
-        // 4. Solicitar la reserva.
-        // Biblioteca verifica otra vez la disponibilidad.
+        // 3. Solicitar la reserva.
+        // Biblioteca toma la decisión definitiva.
         LibroRespuesta reservado =
                 bibliotecaClient.reservar(solicitud.libroId());
 
-        // 5. Registrar el préstamo después de confirmar la reserva.
-        Prestamo prestamo = new Prestamo(
-                siguienteId++,
+        // 4. Preparar el registro persistente.
+        PrestamoEntity entidad = new PrestamoEntity(
                 reservado.id(),
                 reservado.titulo(),
-                solicitud.matricula().trim(),
+                matricula,
                 LocalDate.now(),
                 "ACTIVO"
         );
 
-        prestamos.put(prestamo.id(), prestamo);
+        // 5. Guardar el préstamo en su propia base de datos.
+        PrestamoEntity guardado =
+                prestamoRepository.saveAndFlush(entidad);
 
-        return prestamo;
+        // 6. Preparar la respuesta.
+        return convertir(guardado);
     }
 
-    public synchronized List<Prestamo> obtenerTodos() {
-        return new ArrayList<>(prestamos.values());
+    @Transactional(readOnly = true)
+    public List<Prestamo> obtenerTodos() {
+
+        return prestamoRepository
+                .findAll(Sort.by("id"))
+                .stream()
+                .map(this::convertir)
+                .toList();
     }
 
-    public synchronized Prestamo buscarPorId(int id) {
-        Prestamo prestamo = prestamos.get(id);
+    @Transactional(readOnly = true)
+    public Prestamo buscarPorId(int id) {
 
-        if (prestamo == null) {
+        if (id <= 0) {
             throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Préstamo no encontrado"
+                    HttpStatus.BAD_REQUEST,
+                    "El identificador del préstamo debe ser mayor que cero"
             );
         }
 
-        return prestamo;
+        return prestamoRepository.findById(id)
+                .map(this::convertir)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Préstamo no encontrado"
+                ));
+    }
+
+    private Prestamo convertir(PrestamoEntity entidad) {
+
+        return new Prestamo(
+                entidad.getId(),
+                entidad.getLibroId(),
+                entidad.getTituloLibro(),
+                entidad.getMatricula(),
+                entidad.getFechaPrestamo(),
+                entidad.getEstado()
+        );
     }
 }
