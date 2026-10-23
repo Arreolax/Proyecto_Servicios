@@ -1,0 +1,8 @@
+dentro de carpeta biblioteca en cmd:
+.\mvnw.cmd spring-boot:run
+
+dentro de la carpeta consumidor-biblioteca en cmd:
+py -m http.server 5500 --bind 127.0.0.1
+
+
+biblioteca_pass
