@@ -1,33 +1,43 @@
 package com.example.biblioteca.controlador;
 
-import com.example.biblioteca.modelo.Libro;
-import com.example.biblioteca.servicio.LibroService;
-import org.springframework.http.HttpStatus;
+import com.example.biblioteca.modelo.ReservaRespuesta;
+import com.example.biblioteca.modelo.SolicitudReserva;
+import com.example.biblioteca.servicio.ReservaService;
+
+import java.util.UUID;
+
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException; 
 
 @RestController
-@RequestMapping("/api/libros")
+@RequestMapping("/api/reservas")
 public class ReservaController {
 
-    private final LibroService libroService;
+    private final ReservaService reservaService;
 
-    public ReservaController(LibroService libroService) {
-        this.libroService = libroService;
+    public ReservaController(ReservaService reservaService) {
+        this.reservaService = reservaService;
     }
 
-    @PostMapping("/{id}/reserva")
-    public Libro reservar(@PathVariable("id") int id) {
-        if (id <= 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "El identificador debe ser mayor que cero"
-            );
-        }
+    @PutMapping("/{operacionId}")
+    public ReservaRespuesta reservar(
+            @PathVariable("operacionId") UUID operacionId,
+            @RequestBody SolicitudReserva solicitud) {
 
-        return libroService.reservar(id);
+        ReservaRespuesta respuesta =
+                reservaService.reservar(operacionId, solicitud);
+
+        return respuesta;
+    }
+
+    @GetMapping("/{operacionId}")
+    public ReservaRespuesta consultar(
+            @PathVariable("operacionId") UUID operacionId) {
+
+        return reservaService.consultar(operacionId);
     }
 }
