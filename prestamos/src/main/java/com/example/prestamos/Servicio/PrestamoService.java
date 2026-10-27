@@ -1,20 +1,17 @@
 package com.example.prestamos.servicio;
 
 import com.example.prestamos.cliente.BibliotecaClient;
-
 import com.example.prestamos.modelo.LibroRespuesta;
+import com.example.prestamos.modelo.OperacionRespuesta;
 import com.example.prestamos.modelo.Prestamo;
 import com.example.prestamos.modelo.SolicitudPrestamo;
 
-import com.example.prestamos.persistencia.PrestamoEntity;
-import com.example.prestamos.persistencia.PrestamoRepository;
-
-import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -22,118 +19,102 @@ import org.springframework.web.server.ResponseStatusException;
 public class PrestamoService {
 
     private final BibliotecaClient bibliotecaClient;
-    private final PrestamoRepository prestamoRepository;
+    private final OperacionLocalService operaciones;
 
     public PrestamoService(
             BibliotecaClient bibliotecaClient,
-            PrestamoRepository prestamoRepository) {
+            OperacionLocalService operaciones) {
 
         this.bibliotecaClient = bibliotecaClient;
-        this.prestamoRepository = prestamoRepository;
+        this.operaciones = operaciones;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public Prestamo registrar(SolicitudPrestamo solicitud) {
 
-        // 1. Validar la solicitud antes de reservar.
-        if (solicitud == null
-                || solicitud.libroId() == null
-                || solicitud.libroId() <= 0) {
+        // Esta llamada termina y confirma su transacción
+        // antes de continuar con la comunicación HTTP.
+        OperacionRespuesta operacion =
+                operaciones.iniciar(solicitud);
 
+        if (!"PENDIENTE".equals(operacion.estado())) {
+            return resolverResultado(operacion);
+        }
+
+        try {
+            bibliotecaClient.reservarOperacion(
+                    operacion.operacionId(),
+                    operacion.libroId()
+            );
+
+        } catch (ResponseStatusException error) {
+
+            int codigo = error.getStatusCode().value();
+
+            if (codigo == 404 || codigo == 409) {
+
+                OperacionRespuesta resultado =
+                        operaciones.rechazar(
+                                operacion.operacionId(),
+                                codigo,
+                                error.getReason()
+                        );
+
+                return resolverResultado(resultado);
+            }
+
+            // No marcar como rechazada una operación incierta.
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "El identificador del libro debe ser mayor que cero"
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Resultado no confirmado. Reintenta con el mismo UUID: "
+                            + operacion.operacionId()
             );
         }
 
-        if (solicitud.matricula() == null
-                || solicitud.matricula().isBlank()) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "La matrícula es obligatoria"
-            );
-        }
-
-        String matricula = solicitud.matricula().trim();
-
-        if (matricula.length() > 50) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "La matrícula no debe superar 50 caracteres"
-            );
-        }
-
-        // 2. Consultar el libro mediante la API de biblioteca.
+        // La reserva ya está confirmada.
+        // Consultar el libro permite obtener su título.
+        // No rechazamos disponible=false: es lo esperado.
         LibroRespuesta libro =
-                bibliotecaClient.consultar(solicitud.libroId());
+                bibliotecaClient.consultar(operacion.libroId());
 
-        if (!libro.disponible()) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "El libro no está disponible para préstamo"
-            );
-        }
-
-        // 3. Solicitar la reserva.
-        // Biblioteca toma la decisión definitiva.
-        LibroRespuesta reservado =
-                bibliotecaClient.reservar(solicitud.libroId());
-
-        // 4. Preparar el registro persistente.
-        PrestamoEntity entidad = new PrestamoEntity(
-                reservado.id(),
-                reservado.titulo(),
-                matricula,
-                LocalDate.now(),
-                "ACTIVO"
+        // Nueva transacción local.
+        return operaciones.confirmar(
+                operacion.operacionId(),
+                libro
         );
-
-        // 5. Guardar el préstamo en su propia base de datos.
-        PrestamoEntity guardado =
-                prestamoRepository.saveAndFlush(entidad);
-
-        // 6. Preparar la respuesta.
-        return convertir(guardado);
     }
 
-    @Transactional(readOnly = true)
     public List<Prestamo> obtenerTodos() {
-
-        return prestamoRepository
-                .findAll(Sort.by("id"))
-                .stream()
-                .map(this::convertir)
-                .toList();
+        return operaciones.obtenerTodos();
     }
 
-    @Transactional(readOnly = true)
     public Prestamo buscarPorId(int id) {
+        return operaciones.buscarPorId(id);
+    }
 
-        if (id <= 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "El identificador del préstamo debe ser mayor que cero"
+    public OperacionRespuesta consultarOperacion(UUID operacionId) {
+        return operaciones.consultar(operacionId);
+    }
+
+    private Prestamo resolverResultado(
+            OperacionRespuesta operacion) {
+
+        if ("CONFIRMADA".equals(operacion.estado())) {
+            return operaciones.buscarPorId(
+                    operacion.prestamoId()
             );
         }
 
-        return prestamoRepository.findById(id)
-                .map(this::convertir)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Préstamo no encontrado"
-                ));
-    }
+        if ("RECHAZADA".equals(operacion.estado())) {
+            throw new ResponseStatusException(
+                    HttpStatus.valueOf(operacion.codigoError()),
+                    operacion.mensaje()
+            );
+        }
 
-    private Prestamo convertir(PrestamoEntity entidad) {
-
-        return new Prestamo(
-                entidad.getId(),
-                entidad.getLibroId(),
-                entidad.getTituloLibro(),
-                entidad.getMatricula(),
-                entidad.getFechaPrestamo(),
-                entidad.getEstado()
+        throw new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "La operación continúa pendiente"
         );
     }
 }

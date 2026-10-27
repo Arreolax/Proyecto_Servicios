@@ -1,18 +1,20 @@
 package com.example.prestamos.controlador;
 
+import com.example.prestamos.modelo.OperacionRespuesta;
 import com.example.prestamos.modelo.Prestamo;
 import com.example.prestamos.modelo.SolicitudPrestamo;
 import com.example.prestamos.servicio.PrestamoService;
-import java.net.URI;
+
 import java.util.List;
-import org.springframework.http.ResponseEntity;
+import java.util.UUID;
+
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.CrossOrigin; 
 
 @RestController
 @RequestMapping("/api/prestamos")
@@ -29,18 +31,10 @@ public class PrestamoController {
     }
 
     @PostMapping
-    public ResponseEntity<Prestamo> registrar(
+    public Prestamo registrar(
             @RequestBody SolicitudPrestamo solicitud) {
 
-        Prestamo prestamo = prestamoService.registrar(solicitud);
-
-        URI ubicacion = URI.create(
-                "/api/prestamos/" + prestamo.id()
-        );
-
-        return ResponseEntity
-                .created(ubicacion)
-                .body(prestamo);
+        return prestamoService.registrar(solicitud);
     }
 
     @GetMapping
@@ -49,7 +43,16 @@ public class PrestamoController {
     }
 
     @GetMapping("/{id}")
-    public Prestamo buscarPorId(@PathVariable("id") int id) {
+    public Prestamo buscarPorId(
+            @PathVariable("id") int id) {
+
         return prestamoService.buscarPorId(id);
+    }
+
+    @GetMapping("/operaciones/{operacionId}")
+    public OperacionRespuesta consultarOperacion(
+            @PathVariable("operacionId") UUID operacionId) {
+
+        return prestamoService.consultarOperacion(operacionId);
     }
 }
